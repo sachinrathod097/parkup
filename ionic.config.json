@@ -1,0 +1,7 @@
+{
+  "name": "parkup",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular"
+}

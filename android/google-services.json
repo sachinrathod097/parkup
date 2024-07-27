@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "76180733199",
+    "project_id": "parkup-430700",
+    "storage_bucket": "parkup-430700.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:76180733199:android:98cd2f1a2a23b0f973127a",
+        "android_client_info": {
+          "package_name": "io.ionic.parkup"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAh6qmHNeXv7FBk4b_ShbB0zON2UGsmA-4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
