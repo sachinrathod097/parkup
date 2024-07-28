@@ -12,6 +12,7 @@ import { LaunchNavigator } from '@awesome-cordova-plugins/launch-navigator/ngx';
 import { AngularFireModule } from '@angular/fire/compat';
 import { AngularFirestoreModule } from '@angular/fire/compat/firestore'
 
+
 @NgModule({
   declarations: [AppComponent],
   imports: [
@@ -22,7 +23,9 @@ import { AngularFirestoreModule } from '@angular/fire/compat/firestore'
     AngularFireModule.initializeApp(environment.firebase),
     AngularFirestoreModule,
   ],
-  providers: [{ provide: RouteReuseStrategy, useClass: IonicRouteStrategy }],
+  providers: [{ provide: RouteReuseStrategy, useClass: IonicRouteStrategy }, 
+    LaunchNavigator
+  ],
   bootstrap: [AppComponent],
 })
 export class AppModule {}

@@ -10,7 +10,12 @@ import * as reactiveUtils from "@arcgis/core/core/reactiveUtils";
 import { DatabaseService, db_parkinglot } from '../services/database.service';
 import { Observable, Subscription, take } from 'rxjs';
 import PictureMarkerSymbol from '@arcgis/core/symbols/PictureMarkerSymbol';
-import { IonModal } from '@ionic/angular';
+import TextSymbol from "@arcgis/core/symbols/TextSymbol";
+import { AlertController, IonModal, Platform } from '@ionic/angular';
+import firebase from 'firebase/compat/app';
+import 'firebase/firestore';
+import { HttpClient } from '@angular/common/http';
+import { LaunchNavigator } from '@awesome-cordova-plugins/launch-navigator/ngx';
 
 @Component({
   selector: 'app-home',
@@ -25,12 +30,23 @@ export class HomePage {
   private view: MapView = new MapView;
   streetParkingLots: db_parkinglot[] = [];
   private allSubscription: Subscription[] = [];
-  constructor(public dbService: DatabaseService) {}
-  public attributes: any;
+  selected: boolean = false;
+  constructor(public dbService: DatabaseService, public http: HttpClient, public launchNav: LaunchNavigator, public plt: Platform,   private alertCtrl: AlertController) { }
+  public parkinglot: db_parkinglot = {
+    availability: "N/A",
+    coordinates: new firebase.firestore.GeoPoint(0, 0),
+    name: 'Searching',
+    pid: '',
+    price: 'N/A',
+    street: false,
+    crimerate: 5,
+    rating: "3.5",
+  };
   public oldExtent: any;
+  public image = "";
   // @ts-ignore
   public nearByParkinglots: Observable<db_parkinglot[]>;
-  async ngOnInit(){
+  async ngOnInit() {
     const position = await Geolocation.getCurrentPosition();
     this.currentLocation = new Point({
       longitude: -118.289329,
@@ -38,10 +54,10 @@ export class HomePage {
     })
     this.nearByParkinglots = this.dbService.watchParkinglots();
 
-    esriConfig.apiKey = "AAPTxy8BH1VEsoebNVZXo8HurGVM5WhO0kgNBvtPp3_A3qg2UCHT8zzIoYWmVeGkLgoQhDzY6rQGZEnGhOgL7bz_vnU4V3A5Jd-3KOYeQW2pWRY8tD3NRcZnYMiMy33GLteXoxH5DjTwfkL4lOMrazWJONKoMLtJhVWjwMuwq10rWDK3eMK3ekkI4ObOrp0Gtxpkcq_aLW9Q9oBOg8lJKFDIe5rBlSJEaNhnMiiYOpNxZQUkEAKeOLrryDagRhkCbplbAT1_FD6f29Ym";
+    esriConfig.apiKey = "AAPTxy8BH1VEsoebNVZXo8HurJPd1YxuAvtilR4Oj-eMC3J8CTubEtg7vHQVygz7hKrVJOXVQ8sTkm5QkfzWuVcHjcXTjbG4h76o4tpSwCuvMU20ehecGgFMBZoWIYp1qxE44TN4SHc-LTyrxfmoWpq61fin8vR94MZzw7aRm8BDL7ZLFyg5jC9FrSdDljzuKkQupWdyv3bAuRt7a8x4OQ9d9StYSpCHvuxS4zddaIc0o5ZPMz42gu8w9oCUQ7XIll7qa-lym124KXw2BumekZAfXQ..AT1_leICqsXp";
     const webmap = new WebMap({
-      portalItem:{
-        id: "26f330701a8f4a9192cacc3339b0ccb7",
+      portalItem: {
+        id: "a1ebd050b5c44f7e9443ff8b157d780f",
       }
     });
 
@@ -52,43 +68,48 @@ export class HomePage {
       center: this.currentLocation
     });
 
-    // this.view.map.on("drag", (event) => {
-    //   console.log(event)
-    //   var point = this.getCenterPoint();
-    //   console.log(this.view.center.longitude);
-    //   console.log(this.view.center.latitude);
-    // });
-
     reactiveUtils.watch(
-        () => [this.view.stationary, this.view.extent],
-        ([stationary, extent], [wasStationary]) => {
-            if (stationary) {
-                try{
-                  // @ts-ignore
-                  this.dbService.getNearByStreetParkinglots(extent.center);
-                }
-                catch{}
+      () => [this.view.stationary, this.view.extent],
+      ([stationary, extent], [wasStationary]) => {
+        if (stationary) {
+          try {
+            // @ts-ignore
+            this.dbService.getNearByStreetParkinglots(extent.center);
+            // @ts-ignore
+            this.findNearByParkinlotsService(extent.center, 3000);
+          }
+          catch { }
 
-            }
         }
+      }
     );
 
     this.view.on('click', (event) => {
       const opts = {
         include: this.view.graphics.toArray()
       }
-      console.log("IIIIIIIINNNNNNNNNN")
       this.view.hitTest(event, opts).then(async (response) => {
-        console.log(response.results)
-        // check if a feature is returned from the hurricanesLayer
         if (response.results.length) {
-          console.log("IIIIIIIINNNNNNNNNN")
-          // do something with the graphic
           // @ts-ignore
-          this.attributes = response.results[0].graphic.attributes;
-          // this.parkinglotModal.overlayIndex = 5;
-          // this.parkinglotModal.showBackdrop = false;
-          //await this.parkinglotModal.present();
+          this.parkinglot = response.results[0].graphic.attributes;
+          const index = Math.floor(Math.random() * 4) + 1;
+          this.image = "../../assets/";
+          if(this.parkinglot.street){
+            this.image += "street_" + index.toString() + ".png";
+          }
+          else{
+            if(Math.floor(Math.random() * 2)){
+              this.image += "lot_" + index.toString() + ".png";
+            }
+            else{
+              this.image += "garage_" + index.toString() + ".png";
+            }
+          }
+          this.selected = true;
+          await this.parkinglotModal.dismiss();
+          this.parkinglotModal.initialBreakpoint = 0.65;
+          this.parkinglotModal.setCurrentBreakpoint(0.65);
+          await this.parkinglotModal.present();
         }
       });
     });
@@ -97,7 +118,7 @@ export class HomePage {
     // await this.dbService.pushData(parkings);
   }
 
-  addCurrentAddressInfo(){
+  addCurrentAddressInfo() {
     var symbol = new PictureMarkerSymbol({ "angle": 0, "xoffset": 0, "yoffset": 10, "url": "http://static.arcgis.com/images/Symbols/Shapes/RedPin1LargeB.png", "width": 30, "height": 40 });
     const currentPositionGraphic = new Graphic({
       geometry: this.currentLocation,
@@ -113,29 +134,58 @@ export class HomePage {
   sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
   async ionViewDidEnter() {
-      // start ploting street parking lots
-      const streetParkinglotSub = this.nearByParkinglots.subscribe(async parkinglots => {
-        
-        if(parkinglots){
-          console.log("in")
-          for(var i=0; i<parkinglots.length; i++){
-            if(i == 0){
-              this.view.center = new Point({
-                longitude: parkinglots[i].coordinates.longitude,
-                latitude: parkinglots[i].coordinates.latitude
-              });
-            }
-            this.addParkingLotGraphic(parkinglots[i]);
-            if((i+1) % 100 == 0){
-              await this.sleep(3000);
-            }
+    // start ploting street parking lots
+    const streetParkinglotSub = this.nearByParkinglots.subscribe(async parkinglots => {
+      if (parkinglots) {
+        this.parkinglot = parkinglots[0];
+        for (var i = 0; i < parkinglots.length; i++) {
+          this.addParkingLotGraphic(parkinglots[i]);
+          if ((i + 1) % 100 == 0) {
+            await this.sleep(3000);
           }
         }
-        
+      }
+
+    });
+    this.dbService.getNearByStreetParkinglots(this.view.center);
+    this.findNearByParkinlotsService(this.view.center, 3000);
+    this.allSubscription.push(streetParkinglotSub);
+  }
+
+  async findNearByParkinlotsService(point: Point, radius: number) {
+    var parkingID = "19020";
+    var searchCount = 20;
+    var token = "AAPTxy8BH1VEsoebNVZXo8HurOvDojB09Xw7ZKgOZin7PquaH18eTQ-TQSqSDDNG73OJDJHjCRgLUvxKB3LOA6jZkcjALEZ7a7OMX1L15vhxTjA5fxufOpGu30RIkEeOrAGik-shuIBVx2-EeRVkswUaDtkWZQ7kaMyF8UWnPeojH9R4IX3oX28U310k-at-EDGzEQZvrJ0hyhWDYlBrF1AiCDwacVMC3Qv1VwJr-x5QrqY.AT1_Tk6GGjYD";
+    var url = " https://places-api.arcgis.com/arcgis/rest/services/places-service/v1/places/near-point?f=json&x=" + point.longitude + "&y=" + point.latitude + "&radius=" + radius + "&categoryIds=" + parkingID + "&pageSize=" + searchCount + "&token=" + token;
+    const headers = {
+      'Accept': 'application/json'
+    };
+
+    fetch(url,
+      {
+        method: 'GET',
+        headers: headers
+      })
+      .then(async (res) => {
+        return res.json();
+      }).then((body) => {
+        var parkingLots = body.results;
+
+        for (var i = 0; i < parkingLots.length; i++) {
+          console.log(parkingLots[i].placeId);
+          var parkingLot: db_parkinglot = {
+            availability: "N/A",
+            coordinates: new firebase.firestore.GeoPoint(parkingLots[i].location.y, parkingLots[i].location.x),
+            name: parkingLots[i].name,
+            pid: parkingLots[i].placeId,
+            price: "N/A",
+            street: false,
+            crimerate: 5,
+            rating: "3.5",
+          }
+          this.dbService.insertParkingLot(parkingLot);
+        }
       });
-      this.dbService.getNearByStreetParkinglots(this.view.center);
-      this.allSubscription.push(streetParkinglotSub);
-      
   }
 
   ionViewWillLeave() {
@@ -145,45 +195,109 @@ export class HomePage {
   }
 
   addParkingLotGraphic(parkinglot: db_parkinglot) {
+    const allPids = [];
+    const allGrpahic = this.view.graphics.toArray();
+    for (var i = 0; i < allGrpahic.length; i++) {
+      allPids.push(allGrpahic[i].attributes.pid);
+    }
     var popupTemplate;
-    if(parkinglot.street){
-      popupTemplate = {
-        // autocasts as new PopupTemplate()
-        title: parkinglot.name + " - " + parkinglot.pid,
-        content: "Availability: " + parkinglot.availability + "<br>" + "Price: " + parkinglot.price,
+      var icon = "";
+      var width = 0;
+      var height = 0;
+      if (parkinglot.street) {
+        if(parkinglot.availability == 'VACANT'){
+          icon = "../../assets/street_empty.png";
+        }
+        else{
+          icon = "../../assets/street_busy.png"
+        }
+        popupTemplate = {
+          // autocasts as new PopupTemplate()
+          title: parkinglot.name + " - " + parkinglot.pid,
+          content: "Availability: " + parkinglot.availability + "<br>" + "Price: " + parkinglot.price,
+        }
+        width = 30;
+        height = 30;
       }
+      else {
+        width = 50;
+        height = 50;
+        console.log(parkinglot.availability);
+        switch(parkinglot.availability){
+          case "VACANT":
+            icon = "../../assets/empty.png";
+            break;
+          case "MEDIUM":
+            icon = "../../assets/middle.png";
+            break;
+          case "OCCUPIED":
+            icon = "../../assets/busy.png";
+            break;
+          case "N/A":
+            icon = "../../assets/na.png";
+            break;
+        }
+        popupTemplate = {
+          // autocasts as new PopupTemplate()
+          title: parkinglot.name,
+          content: "Availability: " + parkinglot.availability + "<br>" + "Price: " + parkinglot.price,
+        }
+        
+      }
+      const parkinglotPoint = new Point({
+        longitude: parkinglot.coordinates.longitude,
+        latitude: parkinglot.coordinates.latitude
+      });
+
+      var symbol = new PictureMarkerSymbol({
+        "angle": 0, "xoffset": 0, "yoffset": 10, "url": icon, "width": width, "height": height, color: "black"
+      });
+      const iconGraphic = new Graphic({
+        attributes: parkinglot,
+        geometry: parkinglotPoint,
+        symbol: symbol
+      });
+    if (!allPids.includes(parkinglot.pid)) {
+      this.view.graphics.add(iconGraphic);
     }
     else{
-      popupTemplate = {
-        // autocasts as new PopupTemplate()
-        title: parkinglot.name,
-        content: "Availability: " + parkinglot.availability + "<br>" + "Price: " + parkinglot.price,
+      var currentParkinglotIndex = this.view.graphics.toArray().findIndex(graphic => graphic.attributes.pid == parkinglot.pid);
+      // //@ts-ignore
+      if(this.view.graphics.at(currentParkinglotIndex).symbol != symbol){
+        console.log("removing")
+        this.view.graphics.at(currentParkinglotIndex).symbol = symbol;
       }
     }
-    const parkinglotPoint = new Point({
-      longitude: parkinglot.coordinates.longitude,
-      latitude: parkinglot.coordinates.latitude
+  }
+
+  async navigator(){
+    const alert = await this.alertCtrl.create({
+      header: 'Please take our survey after you arrive to help other people ParkSmart!',
+      message: 'Open Google Map?',
+      cssClass: 'logout',
+      mode: 'ios',
+      buttons: [
+        {
+          text: 'NO',
+          role: 'cancel',
+          cssClass: 'no',
+        },
+        {
+          text: 'YES',
+          cssClass: 'yes',
+          handler: () => {
+            this.launchNavigator();
+          }
+        }
+      ],
     });
-    const attributes = {
-      "pid": parkinglot.pid,
-      "name": parkinglot.name,
-      "lat": parkinglot.coordinates.latitude,
-      "lan": parkinglot.coordinates.latitude,
-      "availability": parkinglot.availability,
-      "price": parkinglot.price
-    }
-    const graphic = new Graphic({
-      attributes: attributes,
-      geometry: parkinglotPoint,
-      symbol: {
-        // @ts-ignore
-        type: "simple-marker",
-        color: "skyblue",
-        size: "17px",
-      },
-      //popupTemplate: popupTemplate
+    await alert.present();
+  }
+
+  launchNavigator(){
+    const destination = [this.parkinglot.coordinates.latitude, this.parkinglot.coordinates.longitude];
+    this.launchNav.navigate(destination, {app: this.plt.is('ios') ? this.launchNav.APP.APPLE_MAP : this.launchNav.APP.GOOGLE_MAPS}).then(() => {}).catch(err => {
     });
-    this.view.graphics.add(graphic);
   }
 
 }
