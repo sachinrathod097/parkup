@@ -34,11 +34,15 @@ ion-back-button {
   position: absolute;
   top: 50%; left: 50%;
   margin: -40px 0 0 -11px;
-  background: url('../../assets/location-pin.png');
+  background: url('../../assets/map_center.png');
   background-size: 60px 60px; /* Since I used the HiDPI marker version this compensates for the 2x size */
   pointer-events: none; /* This disables clicks on the marker. Not fully supported by all major browsers, though */
 }
 
 .model-backdrop {
   display:none;
+}
+
+.esri-widget .esri-widget--panel {
+  max-height: 50px !important; /**whatever you want here**/
 }

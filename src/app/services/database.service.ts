@@ -26,7 +26,7 @@ export interface db_parkinglot{
   "price": string,
   "availability": string,
   "coordinates": firebase.firestore.GeoPoint,
-  "rating": string,
+  "rating": number,
   "crimerate": number
 }
 
@@ -68,8 +68,8 @@ export class DatabaseService {
             pid: parkinglot.spaceid,
             price: parkinglot.raterange,
             street: true,
-            crimerate: 5,
-            rating: "3.5",
+            crimerate: Math.floor(Math.random() * 5) + 1,
+            rating: parseFloat((Math.random() * (5 - 1) + 1).toFixed(2))
           }
       const docRef = this.geoParkinglotCollection.doc(parkinglot.spaceid);
       batch.set(docRef, db_parking);
@@ -117,7 +117,7 @@ export class DatabaseService {
   }
 
   async getNearByStreetParkinglots(position: Point){
-    //await this.destroyParkinglotSub();
+    await this.destroyParkinglotSub();
     this.parkinglotSub = this.gfs.collection('parkinglots').near({ center: new firebase.firestore.GeoPoint(position.latitude, position.longitude), radius: 2 }).onSnapshot(
       async res => {
         console.log(res.docs.length);
@@ -131,7 +131,7 @@ export class DatabaseService {
     );
   }
 
-  async insertParkingLot(parkingLot:db_parkinglot){
+  async insertParkingLot(parkingLot: db_parkinglot){
     var docRef = await this.afs.collection("parkinglots").doc(parkingLot.pid).ref.get();
     if(!docRef.exists){
       this.geoParkinglotCollection.doc(parkingLot.pid).set(parkingLot); 
