@@ -2,17 +2,18 @@
   <div id="map_canvas"></div>
   <div id="myOwnLocatorButton" class="esri-component esri-widget--button esri-widget" role="button"><span
     title="locator" id="custom-printer" class="esri-icon esri-icon-locate-circled"></span></div>
-  <ion-modal mode="ios" [isOpen]="true" #parkinglotModal [initialBreakpoint]="0.22" [breakpoints]="[0.22, 0.6]" [showBackdrop]="false" [backdropDismiss]="false" [backdropBreakpoint]="1">
+  <ion-modal mode="ios" [isOpen]="true" #parkinglotModal [initialBreakpoint]="0.245" [breakpoints]="[0.245, 0.6]" [showBackdrop]="false" [backdropDismiss]="false" [backdropBreakpoint]="1">
     <ng-template>
       <ion-header translucent>
         <ion-toolbar>
           <ion-title *ngIf="selected" class="ion-no-padding ion-text-center" color="transparent" lines="none">
             <ion-label color="dark">Parking Details</ion-label>
           </ion-title>
-          <ion-title *ngIf="!selected" class="ion-no-padding ion-text-center" color="transparent" lines="none">
+          <ion-title *ngIf="!selected" class="ion-no-padding" color="transparent" mode="md" style="margin-left: 5px;" lines="none">
             <ion-label *ngIf="recommend" color="dark">Finding Best Parking</ion-label>
             <ion-label *ngIf="!recommend" color="dark">Recommended {{garage_recommend? 'Garage' : 'Street'}} Parking</ion-label>
           </ion-title>
+          <ion-button *ngIf="!selected && !recommend" fill="clear" color="primary" slot="end" (click)="viewRecommendation()">Details</ion-button>
         </ion-toolbar>
       </ion-header>
       <ion-content>

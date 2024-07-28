@@ -8,7 +8,8 @@ import Graphic from '@arcgis/core/Graphic';
 import FeatureLayer from '@arcgis/core/layers/FeatureLayer';
 import * as reactiveUtils from "@arcgis/core/core/reactiveUtils";
 import { DatabaseService, db_parkinglot } from '../services/database.service';
-import { debounce, debounceTime, Observable, Subscription, take } from 'rxjs';
+import { debounceTime, Observable, Subscription, take } from 'rxjs';
+import Zoom from '@arcgis/core/widgets/Zoom';
 import PictureMarkerSymbol from '@arcgis/core/symbols/PictureMarkerSymbol';
 import { ActionSheetController, AlertController, IonModal, Platform } from '@ionic/angular';
 import firebase from 'firebase/compat/app';
@@ -34,6 +35,7 @@ export class HomePage {
 
   private currentLocation: Point = new Point;
   private view: MapView = new MapView;
+  private zoomWidget: Zoom = new Zoom;
   private allSubscription: Subscription[] = [];
   public recommend = false;
   selected: boolean = false;
@@ -135,12 +137,29 @@ export class HomePage {
       container: "map_canvas",
       map: webmap,
       zoom: 18,
-      center: this.currentLocation
+      center: this.currentLocation,
+      ui: {
+        components: ["attribution"],
+
+      }
+    });
+
+    this.zoomWidget = new Zoom({
+      view: this.view,
+      layout: "horizontal"
     });
 
     this.locatorWidget = document.getElementById("myOwnLocatorButton");
     this.locatorWidget?.addEventListener("click", async () => await this.locatorAction());
-    this.view.ui.add(["myOwnLocatorButton"], "bottom-left");
+    this.view.ui.add(["myOwnLocatorButton", this.zoomWidget], "bottom-left");
+
+    this.searchWidget = new Search({
+      view: this.view,
+      popupEnabled: false,
+      resultGraphicEnabled: false
+    });
+
+    this.view.ui.add(this.searchWidget, "bottom-right");
 
     reactiveUtils.watch(
       () => [this.view.stationary, this.view.extent],
@@ -203,13 +222,6 @@ export class HomePage {
       });
     });
 
-    this.searchWidget = new Search({
-      view: this.view,
-      popupEnabled: false,
-      resultGraphicEnabled: false
-    });
-
-    this.view.ui.add(this.searchWidget, "top-right");
     // var parkings: any = await this.dbService.pullData();
     // console.log(parkings.length)
     // await this.dbService.pushData(parkings);
@@ -320,31 +332,24 @@ export class HomePage {
           console.log('get recommendation');
           const allStreetParkings = parkinglots.filter(parkinglot => parkinglot.street == true);
           const allGarageParkings = parkinglots.filter(parkinglot => parkinglot.street == false);
-          const streetParkingIndex = this.determineRecommendation(allStreetParkings);
-          const garageParkingIndex = this.determineRecommendation(allGarageParkings);
-          if (streetParkingIndex != -1 && garageParkingIndex != -1) {
-            this.recommendedStreetParking = allStreetParkings[streetParkingIndex];
-            this.recommendedGarageParking = allGarageParkings[garageParkingIndex];
+          this.recommendedStreetParking = this.determineRecommendation(allStreetParkings, true);
+          this.recommendedGarageParking = this.determineRecommendation(allGarageParkings, false);
+          if (this.recommendedStreetParking.pid == "default_parking_pid" && this.recommendedGarageParking.pid == "default_parking_pid") {
+            this.recommendedStreetParking = parkinglots[0];
+            this.recommendedGarageParking = parkinglots[0];
           }
-          else if (streetParkingIndex != -1) {
-            this.recommendedStreetParking = allStreetParkings[streetParkingIndex];
+          else if (this.recommendedStreetParking.pid == "default_parking_pid") {
+            this.recommendedStreetParking = parkinglots[0];
           }
-          else if (garageParkingIndex != -1) {
-            this.recommendedGarageParking = allGarageParkings[garageParkingIndex];
-          }
-          else {
-            this.parkinglot = parkinglots[0];
+          else if (this.recommendedGarageParking.pid == "default_parking_pid") {
+            this.recommendedGarageParking = parkinglots[0];
           }
 
           if (this.garage_recommend) {
-            if (garageParkingIndex != -1) {
-              this.parkinglot = this.recommendedGarageParking;
-            }
+            this.parkinglot = this.recommendedGarageParking;
           }
           else {
-            if (streetParkingIndex != -1) {
-              this.parkinglot = this.recommendedStreetParking;
-            }
+            this.parkinglot = this.recommendedStreetParking;
           }
           this.view.center = new Point({ latitude: this.parkinglot.coordinates.latitude, longitude: this.parkinglot.coordinates.longitude });
           this.removePreviousSelection();
@@ -643,17 +648,20 @@ export class HomePage {
     return distance;
   }
 
-  determineRecommendation(parkingLots: db_parkinglot[]) {
+  determineRecommendation(parkingLots: db_parkinglot[], isStreet: boolean) {
     var scoreArray = new Array();
     var priceArray = new Array();
     var distanceArray = new Array();
     var crimeArray = new Array();
     var busyArray = new Array();
-    console.log("recome")
+    var ratingArray = new Array();
+
     for (var i = 0; i < parkingLots.length; i++) {
       priceArray.push(parkingLots[i].price == "N/A" ? 0 : parseFloat(parkingLots[i].price.substring(1)));
       distanceArray.push(this.determineDistance(parkingLots[i].coordinates.longitude, parkingLots[i].coordinates.latitude));
-      crimeArray.push(parkingLots[i].crimerate)
+      crimeArray.push(parkingLots[i].crimerate);
+      ratingArray.push(5.0 - parkingLots[i].rating);
+
       if (parkingLots[i].availability == "VACANT") {
         busyArray.push(1);
       }
@@ -661,7 +669,7 @@ export class HomePage {
         busyArray.push(0.5);
       }
       else if (parkingLots[i].availability == "OCCUPIED") {
-        busyArray.push(0);
+        busyArray.push(parkingLots[i].street ? -1 : 0);
       }
       else {
         busyArray.push(0.25);
@@ -678,17 +686,29 @@ export class HomePage {
 
       var crimeScore = ((Math.max(...crimeArray) - crimeArray[i]) / (0.0001 + (Math.max(...crimeArray) - Math.min(...crimeArray))));
 
-      var acumulatedScore = ((0.1 * priceScore) + (0.2 * crimeScore) + (0.3 * distanceScore) + (0.4 * busyScore));
-      scoreArray.push(acumulatedScore);
+      var ratingScore = ((Math.max(...ratingArray) - ratingArray[i]) / (0.0001 + (Math.max(...ratingArray) - Math.min(...ratingArray))));
+
+      var acumulatedScore = ((0.1 * priceScore) + (0.15 * ratingScore) + (0.2 * crimeScore) + (0.25 * distanceScore) + (0.30 * busyScore));
+
+      scoreArray.push(busyArray[i] == -1 ? -1 : acumulatedScore);
     }
 
     for (var i = 0; i < scoreArray.length; i++) {
       if (scoreArray[i] == Math.max(...scoreArray)) {
-        console.log(parkingLots[i]);
-        return i;
+        return parkingLots[i];
       }
     }
-    return -1;
+    const default_parking_lot: db_parkinglot = {
+      availability: "N/A",
+      coordinates: new firebase.firestore.GeoPoint(this.currentLocation.latitude, this.currentLocation.longitude),
+      crimerate: 5,
+      name: "Sorry no parking found",
+      pid: "default_parking_pid",
+      price: "N/A",
+      rating: 0,
+      street: isStreet
+    }
+    return default_parking_lot;
   }
 
   // toggle change for recommendation
@@ -703,6 +723,28 @@ export class HomePage {
     this.view.center = new Point({ latitude: this.parkinglot.coordinates.latitude, longitude: this.parkinglot.coordinates.longitude });
     this.selectedParkinglots.push(this.parkinglot);
     this.updateSelectedGraphic(this.parkinglot);
+  }
+
+  async viewRecommendation() {
+    await this.parkinglotModal.dismiss();
+    this.selected = true;
+    const index = Math.floor(Math.random() * 4) + 1;
+    this.image = "../../assets/";
+    if (this.parkinglot.street) {
+      this.image += "street_" + index.toString() + ".png";
+    }
+    else {
+      this.parking_lot = Math.floor(Math.random() * 2) == 1;
+      if (this.parking_lot) {
+        this.image += "lot_" + index.toString() + ".png";
+      }
+      else {
+        this.image += "garage_" + index.toString() + ".png";
+      }
+    }
+    this.parkinglotModal.initialBreakpoint = 0.6;
+    this.parkinglotModal.setCurrentBreakpoint(0.6);
+    await this.parkinglotModal.present();
   }
 
 }
