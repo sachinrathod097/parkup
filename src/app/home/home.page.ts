@@ -90,7 +90,7 @@ export class HomePage {
     });
     this.nearByParkinglots = this.dbService.watchParkinglots();
 
-    esriConfig.apiKey = "AAPTxy8BH1VEsoebNVZXo8HurGVM5WhO0kgNBvtPp3_A3qg2UCHT8zzIoYWmVeGkLgoQhDzY6rQGZEnGhOgL7bz_vnU4V3A5Jd-3KOYeQW2pWRY8tD3NRcZnYMiMy33GLteXoxH5DjTwfkL4lOMrazWJONKoMLtJhVWjwMuwq10rWDK3eMK3ekkI4ObOrp0Gtxpkcq_aLW9Q9oBOg8lJKFDIe5rBlSJEaNhnMiiYOpNxZQUkEAKeOLrryDagRhkCbplbAT1_FD6f29Ym";
+    esriConfig.apiKey = "AAPTxy8BH1VEsoebNVZXo8HurJPd1YxuAvtilR4Oj-eMC3J8CTubEtg7vHQVygz7hKrV6bNd_j5sO5RIJcIIzCEtcWDt7OSN7meb12j0R68_aTm9RQ-faOdXi6npRvDfo_J6Ln0JekeLqt8yOAHWN7gRFObaYMXEagKgi8jPg1wZveKdhZvOHluM2bVMmYiDmScKDSJPFEqcougEyPZchppDVWe5rNfQaLEOIR7SR70kCDzac6kjxSLPMH1NUm3WYGXa64h88MWjbvs_lmqaCRKbVA..AT1_vbWtpZTG";
 
     const colors = ["rgba(115, 0, 115, 0)", "#820082", "#910091", "#a000a0", "#af00af", "#c300c3", "#d700d7", "#eb00eb", "#ff00ff", "#ff58a0", "#ff896b", "#ffb935", "#ffea00", "#ffea00", "#ffea00"]
     const url = "https://services8.arcgis.com/LLNIdHmmdjO2qQ5q/arcgis/rest/services/Hackathon_Map_5_WFL1/FeatureServer";
@@ -126,7 +126,7 @@ export class HomePage {
 
     const webmap = new WebMap({
       portalItem: {
-        id: "26f330701a8f4a9192cacc3339b0ccb7",
+        id: "29eeaa4b458740fca6145b3e67240de8",
       },
       layers: [layer]
     });
